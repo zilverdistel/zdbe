@@ -15,3 +15,9 @@ sites/*/private
 # Ignore default text files
 .htaccess
 robots.txt
+
+# Ignore sql dumps
+*.sql
+*.sql.tar.gz
+*.mysql
+*.mysql.tar.gz
