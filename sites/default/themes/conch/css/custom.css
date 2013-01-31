@@ -1,0 +1,62 @@
+@charset "utf-8";
+/* CSS Document */
+.node-unpublished {
+  background: transparent url('../images/1275142785_publish.png') 0 right no-repeat;
+}
+
+.field-type-embedded-video .field-item {
+  float: left; 
+}
+
+#block-views-node_views-block_1 .views-field-field-afbeeldingen-fid img {
+  position: relative;
+  right: 50px;
+}
+
+.node .content p {
+  margin-right: 25px;
+}
+
+
+.jcarousel-skin-tango .jcarousel-container-horizontal {
+    width: 835px;
+    padding: 20px 40px;
+}
+
+.jcarousel-skin-tango .jcarousel-container-vertical {
+    width: 75px;
+    height: 835px;
+    padding: 40px 20px;
+}
+
+.jcarousel-skin-tango .jcarousel-clip-horizontal {
+    width:  835px;
+    height: 230px;
+}
+
+.jcarousel-skin-tango .jcarousel-clip-vertical {
+    width: 230px;
+    height: 835px;
+}
+
+.jcarousel-skin-tango .jcarousel-item {
+    width: 227px;
+    height: 230px;
+}
+
+div.trackback-url {
+  margin-bottom: 10px;
+}
+
+div.trackback-url h2 {
+  font-size: 100%;
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
+div.field-field-original-link {
+  margin: 10px 0;
+  padding-top: 7px;
+  border: 1px dotted #BDCF25;
+  border-width: 1px 0 0;
+}

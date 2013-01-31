@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<pattern>
+  <info>
+    <title>Devel: Pagina aanmaken</title>
+    <description>Pagina aanmaken</description>
+    <author>Zilverdistel</author>
+    <author_email>diederik@zilverdistel.be</author_email>
+    <version>0.1</version>
+    <category>Devel</category>
+    <core>6.x</core>
+  </info>
+  <modules>
+    <module>content</module>
+  </modules>
+  <actions>
+    <node>
+      <type>page</type>
+      <title>Pattern has run succesfully tody</title>
+      <body>Berichttekst</body>
+      <name>diederik</name>
+    </node>
+  </actions>
+</pattern>
+

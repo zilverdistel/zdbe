@@ -1,0 +1,56 @@
+@charset "utf-8";
+/* CSS Document */
+
+#st_main_menu {
+	padding: 0;
+	float: left;
+	text-align:right;
+	padding-top: 25px;
+}
+
+#st_main_menu ul {
+	margin: 0; /* all lists */
+	padding: 0;
+	background:#1b1713;
+	float:right;
+}
+
+#st_main_menu li {
+	margin: 0; /* all list items */
+	padding: 0 20px;
+	float: left;
+	display: block;
+	background: none;
+	cursor: pointer;
+}
+
+/* STYLING THE MENU
+-----------------------------------*/
+/* 1st level */
+#st_main_menu li a {
+	padding: 5px 0px;
+	display: block;
+	color: #FFFFFF;
+	line-height: normal;
+	text-decoration: none;
+}
+#st_main_menu li a:hover,
+#st_main_menu li a:active,
+#st_main_menu li a:focus {
+	background:none;
+	color:#BDCF25
+}
+
+#st_main_menu li.active-trail a {
+	color: #BDCF25;
+}
+
+/* 2st level */
+#st_splitmenu {
+	float:left;
+	margin-bottom:20px;
+	width:100%;
+}
+
+/* 2nd level */
+#st_main_menu_level2 {margin-bottom:20px;float:left;width:100%;}

@@ -1,0 +1,194 @@
+@charset "utf-8";
+/* CSS Document */
+
+#st_main_menu {
+	padding: 0;
+	float: left;
+	text-align:right;
+	padding-top: 25px;
+}
+
+#st_main_menu ul {
+	margin: 0; /* all lists */
+	padding: 0;
+	float:right;
+	background:#1b1713;
+}
+
+#st_main_menu li {
+	margin: 0; /* all list items */
+	padding: 0 20px;
+	float: left;
+	display: block;
+	background: none;
+	cursor: pointer;
+}
+
+#st_main_menu li ul {
+	width: 16.4em;
+	position: absolute; /* second-level lists */
+	z-index: 99;
+	/*left: -999em;*/ /* using left instead of display to hide menus because display: none isn't read by screen readers */
+	display: none;
+	height: auto;
+	w\idth: 15.9em;
+}
+
+#st_main_menu li ul ul {
+	margin: -1.25em 0 0 12em; /* third-and-above-level lists */
+}
+
+#st_main_menu li li,
+#st_main_menu li li.last {
+	padding: 0 1em 0 0;
+	margin: 0;
+	width: 15.9em;
+}
+
+#st_main_menu ul a {
+	/*width: 14.8em;
+	w\idth: 10.8em;*/
+}
+
+#st_main_menu li:hover ul ul,
+#st_main_menu li:hover ul ul ul,
+#st_main_menu li.sfhover ul ul,
+#st_main_menu li.havechildsfhover ul ul,
+#st_main_menu li.havechild-activesfhover ul ul,
+#st_main_menu li.activesfhover ul ul,
+#st_main_menu li.sfhover ul ul ul,
+#st_main_menu li.havechildsfhover ul ul ul,
+#st_main_menu li.havechild-activesfhover ul ul ul,
+#st_main_menu li.activesfhover ul ul ul {
+	/*left: -999em;*/
+}
+
+/* This "unhides" the sub-menus (left: -999em is what hides them) */
+#st_main_menu li:hover ul,
+#st_main_menu li li:hover ul,
+#st_main_menu li li li:hover ul,
+#st_main_menu li.sfhover ul,
+#st_main_menu li.havechildsfhover ul,
+#st_main_menu li.havechild-activesfhover ul,
+#st_main_menu li.activesfhover ul,
+#st_main_menu li li.sfhover ul,
+#st_main_menu li li.havesubchildsfhover ul,
+#st_main_menu li li.havesubchild-activesfhover ul,
+#st_main_menu li li.activesfhover ul,
+#st_main_menu li li li.sfhover ul,
+#st_main_menu li li li.havesubchildsfhover ul,
+#st_main_menu li li li.havesubchild-activesfhover ul,
+#st_main_menu li li li.activesfhover ul {
+	/*left: auto;*/
+}
+
+/* STYLING THE MENU
+-----------------------------------*/
+/* 1st level */
+#st_main_menu li a {
+	padding: 5px 0px;
+	display: block;
+	color: #FFFFFF;
+	line-height: normal;
+	text-decoration: none;
+}
+#st_main_menu li a:hover,
+#st_main_menu li a:active,
+#st_main_menu li a:focus {
+	background:none;
+	color:#BDCF25;
+}
+
+#st_main_menu li:hover a,
+#st_main_menu li.sfhover a,
+#st_main_menu li.havechildsfhover a,
+#st_main_menu li.havechild-activesfhover a {
+	color: #BDCF25;
+}
+#st_main_menu li.havechild-active a,
+#st_main_menu li a.active,
+#st_main_menu li a.active:hover,
+#st_main_menu li a.active:active,
+#st_main_menu li a.active:focus {
+	color: #BDCF25;
+}
+
+/* 2nd level and above */
+#st_main_menu li ul {
+	background: url(images/ul_level2_bg.png) top left repeat;
+}
+
+#st_main_menu li ul li {
+	border-bottom: 1px solid #bdcf25;
+	background: none;
+	padding: 0;
+}
+#st_main_menu li ul li.last {
+	border-bottom: none;
+}
+
+#st_main_menu li ul a {
+	border-right: none;
+	margin: 0;
+	padding: 5px 10px;
+	background: none;
+	color: #FFFFFF;
+	font-weight: normal;
+	font-size: 100%;
+	line-height: normal;
+	text-transform: none;
+}
+#st_main_menu li:hover li a,
+#st_main_menu li.sfhover li a,
+#st_main_menu li.havechildsfhover li a,
+#st_main_menu li.havechild-activesfhover li a {
+	color: #FFFFFF;
+}
+#st_main_menu li li.havesubchildsfhover li a {
+	color:#FFFFFF;
+}
+#st_main_menu li li.havesubchildsfhover a,
+#st_main_menu li.havechild-activesfhover li.havesubchild-active a ,
+#st_main_menu li li.havesubchild-active a,
+#st_main_menu li li li a:hover {
+	color: #17a1c8;
+}
+
+#st_main_menu li ul a:hover,
+#st_main_menu li ul a:active,
+#st_main_menu li ul a:focus,
+#st_main_menu ul li:hover,
+#st_main_menu ul li.sfhover,
+#st_main_menu ul li.havesubchildsfhover,
+#st_main_menu ul li.havesubchild-activesfhover,
+#st_main_menu ul ul li:hover,
+#st_main_menu ul ul li.sfhover,
+#st_main_menu ul ul li.havesubchildsfhover,
+#st_main_menu ul ul li.havesubchild-activesfhover {
+	background: none;
+	color: #17a1c8;
+}
+
+#st_main_menu ul ul li a.active,
+#st_main_menu ul ul li a.active:hover,
+#st_main_menu ul ul li a.active:active,
+#st_main_menu ul ul li a.active:focus {
+	margin: 0;
+	background: none !important;
+	color: #17a1c8;
+}
+
+#st_main_menu ul li a.active span,
+#st_main_menu ul li a.active:hover span,
+#st_main_menu ul li a.active:active span,
+#st_main_menu ul li a.active:focus span {
+	padding: 0;
+	background: none !important;
+	color: #17a1c8;
+	font-weight: bold;
+}
+
+#st_main_menu li ul a span {
+	margin: 0;
+	padding: 0;
+}

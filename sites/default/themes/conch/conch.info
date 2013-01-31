@@ -1,0 +1,29 @@
+; $Id: conch.info,v 0.1.2 2009/10/02 23:27:32 symphonythemes Exp $
+name = Conch
+description = Tableless, recolorable, multi-column, fluid width theme (default).
+version = 0.1.2 Beta
+core = 6.x
+engine = phptemplate
+
+regions[slider] = Slider
+regions[left] = left sidebar
+regions[right] = right sidebar
+regions[content] = Content
+regions[news1] = Footer News 1
+regions[news2] = Footer News 2
+regions[news3] = Footer News 3
+regions[news4] = Footer News 4
+regions[footer_menu] = Footer menu
+regions[copyright] = Copyright
+
+stylesheets[all][] = css/reset.css
+stylesheets[all][] = css/grid.css
+stylesheets[all][] = css/typography.css
+
+stylesheets[print][] = css/print.css
+
+scripts[] = js/jquery.cycle.all.js
+scripts[] = js/supersleight.js
+scripts[] = js/custom.js
+
+
