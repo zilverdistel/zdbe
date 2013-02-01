@@ -17,7 +17,7 @@ class backup_migrate_filter_encryption extends backup_migrate_filter {
   /**
    * This function is called on a backup file after the backup has been completed.
    */
-  function backup($file, $settings) {
+  function backup($file, &$settings) {
     return $this->file_encrypt($file, $settings);
   }
 
@@ -54,7 +54,7 @@ class backup_migrate_filter_encryption extends backup_migrate_filter {
       $form['file']['encryption'] = array(
         "#type" => 'item',
         "#title" => t("File Encryption"),
-        "#value" => t('Install the !link to enable backup file encryption.', array('!link' => l(t('AES Encryption Module'), 'http://drupal.org/project/aes'))),
+        "#markup" => t('Install the !link to enable backup file encryption.', array('!link' => l(t('AES Encryption Module'), 'http://drupal.org/project/aes'))),
       );
     }
 

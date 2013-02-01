@@ -1,13 +1,15 @@
 name = Feeds Admin UI
 description = Administrative UI for Feeds module.
 package = Feeds
+core = 7.x
 dependencies[] = feeds
-core = 6.x
-php = 5.2
+configure = admin/structure/feeds
 
-; Information added by drupal.org packaging script on 2012-12-18
-version = "6.x-1.0-beta13"
-core = "6.x"
+files[] = feeds_ui.test
+
+; Information added by drupal.org packaging script on 2013-01-25
+version = "7.x-2.0-alpha7+29-dev"
+core = "7.x"
 project = "feeds"
-datestamp = "1355848351"
+datestamp = "1359075611"
 

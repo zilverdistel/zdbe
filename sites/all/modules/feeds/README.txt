@@ -34,13 +34,12 @@ Requirements
 
 - CTools 1.x
   http://drupal.org/project/ctools
-- Job Scheduler 1.x
+- Job Scheduler
   http://drupal.org/project/job_scheduler
-- Drupal 6.x
+- Drupal 7.x
   http://drupal.org/project/drupal
 - PHP safe mode is not supported, depending on your Feeds Importer configuration
   safe mode may cause no problems though.
-- PHP 5.2.x recommended
 
 Installation
 ============
@@ -50,8 +49,9 @@ Installation
   Feeds News, Feeds Import, Feeds Fast News (more info below).
 - Make sure cron is correctly configured http://drupal.org/cron
 - Go to import/ to import data.
-- To use SimplePie parser, download SimplePie and place simplepie.inc into
-  feeds/libraries. Recommended version: 1.2.
+- To use SimplePie parser, download either the compiled or minified SimplePie 
+  and place simplepie_[version].compiled.php into feeds/libraries as 
+  simplepie.compiled.php. Recommended version: 1.3.
   http://simplepie.org/
 
 Feature modules
@@ -176,11 +176,6 @@ Name:        feeds_source_class
 Default:     'FeedsSource'
 Description: The class to use for handling feed sources.
 
-Name:        feeds_worker_time
-Default:     15
-Description: Execution time for a queue worker, only effective if used with
-             drupal_queue.
-
 Name:        feeds_data_$importer_id
 Default:     feeds_data_$importer_id
 Description: The table used by FeedsDataProcessor to store feed items. Usually a
@@ -188,7 +183,7 @@ Description: The table used by FeedsDataProcessor to store feed items. Usually a
              and the importer's id ($importer_id). This default table name can
              be overridden by defining a variable with the same name.
 
-Name:        feeds_node_batch_size
+Name:        feeds_process_limit
 Default:     50
              The number of nodes feed node processor creates or deletes in one
              page load.
@@ -196,6 +191,8 @@ Default:     50
 Name:        http_request_timeout
 Default:     15
 Description: Timeout in seconds to wait for an HTTP get request to finish.
+Note:        This setting could be overridden per importer in admin UI :
+             admin/structure/feeds/<your_importer>/settings/<your_fetcher> page.
 
 Name:        feeds_never_use_curl
 Default:     FALSE

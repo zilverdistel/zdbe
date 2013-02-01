@@ -1,7 +1,7 @@
 /**
  * @file TODO.txt
  * @brief Invoice module
- * 
+ *
  * This module was developed by Platina Designs, http://www.platinadesigns.nl
  *
  * @author Pieter Vogelaar <ps.vogelaar@platinadesigns.nl>
@@ -11,18 +11,17 @@ TODO
 ==============================
 
 MUST:
-
-BUGS:
+* Make PDF format "A4, letter, etc." configurable
 
 NICE:
-* Support for a more stable PDF library than dompdf and also has unicode (utf8) support
 * Sorting of invoice items with DRAG and DROP => http://api.drupal.org/api/function/drupal_add_tabledrag
 * Make invoice list sortable on customer company name / lastname, firstname
 * Filter: Pay status filter in invoice list
 * Filter: Overtime status
 * Generate invoice only once and output it to a PDF file for better performance and reduce of CPU
   - Display in the invoice list a regenerate invoice icon
-* Selectbox in the invoice admin screen with yes/no for displaying the field to manual fillin an invoice number 
+* Selectbox in the invoice admin screen with yes/no for displaying the field to manual fillin an invoice number
+* Tag an invoice item VAT
 
 VERY NICE:
 * Possibility to create a new invoice based on a old one => http://drupal.org/node/345636

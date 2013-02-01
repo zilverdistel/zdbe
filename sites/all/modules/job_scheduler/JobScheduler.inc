@@ -1,5 +1,4 @@
 <?php
-// $Id: JobScheduler.inc,v 1.6 2010/09/14 19:09:13 alexb Exp $
 
 /**
  * @file
@@ -7,125 +6,221 @@
  */
 
 /**
- * Handle adding and removing jobs from schedule.
+ * Use to make Job Scheduler exceptions identifiable by type.
+ */
+class JobSchedulerException extends Exception {}
+
+/**
+ * Manage scheduled jobs.
  */
 class JobScheduler {
   /**
-   * Create a single instance of JobScheduler.
+   * The name of this scheduler.
    */
-  public static function instance() {
-    static $instance;
-    if (!isset($instance)) {
-      $class = variable_get('job_scheduler_class', 'JobScheduler');
-      $instance = new $class();
+  protected $name;
+
+  /**
+   * Produces a single instance of JobScheduler for a schedule name.
+   */
+  public static function get($name) {
+    static $schedulers;
+    // Instantiante a new scheduler for $name if we haven't done so yet.
+    if (!isset($schedulers[$name])) {
+      $class = variable_get('job_scheduler_class_' . $name, 'JobScheduler');
+      $schedulers[$name] = new $class($name);
     }
-    return $instance;
+    return $schedulers[$name];
   }
 
   /**
-   * Protect constructor.
+   * Creates a JobScheduler object.
    */
-  protected function __construct() {}
+  protected function __construct($name) {
+    $this->name = $name;
+  }
+
+  /**
+   * Returns scheduler info.
+   *
+   * @see hook_cron_job_scheduler_info()
+   *
+   * @throws JobSchedulerException.
+   */
+  public function info() {
+    if ($info = job_scheduler_info($this->name)) {
+      return $info;
+    }
+    throw new JobSchedulerException('Could not find Job Scheduler cron information for ' . check_plain($this->name));
+  }
 
   /**
    * Add a job to the schedule, replace any existing job.
    *
-   * A job is uniquely identified by $job = array(callbac, type, id).
+   * A job is uniquely identified by $job = array(type, id).
    *
    * @param $job
    *   An array that must contain the following keys:
-   *   'callback' - The callback to evoke.
    *   'type'     - A string identifier of the type of job.
    *   'id'       - A numeric identifier of the job.
    *   'period'   - The time when the task should be executed.
    *   'periodic' - True if the task should be repeated periodically.
    *
    * @code
-   * function callback($job) {
+   * function worker_callback($job) {
    *   // Work off job.
    *   // Set next time to be called. If this portion of the code is not
    *   // reached for some reason, the scheduler will keep periodically invoking
    *   // the callback() with the period value initially specified.
    *   $scheduler->set($job);
    * }
+   * @endcode
    */
   public function set($job) {
-    $job['last'] = JOB_SCHEDULER_REQUEST_TIME;
-    $job['next'] = JOB_SCHEDULER_REQUEST_TIME + $job['period'];
+    $job['name'] = $this->name;
+    $job['last'] = REQUEST_TIME;
+    if (!empty($job['crontab'])) {
+      $crontab = new JobSchedulerCronTab($job['crontab']);
+      $job['next'] = $crontab->nextTime(REQUEST_TIME);
+    }
+    else {
+      $job['next'] = REQUEST_TIME + $job['period'];
+    }
     $job['scheduled'] = 0;
     $this->remove($job);
     drupal_write_record('job_schedule', $job);
   }
 
   /**
+   * Reserve a job.
+   */
+  protected function reserve($job) {
+    $job['name'] = $this->name;
+    $job['scheduled'] =
+    $job['last'] = REQUEST_TIME;
+    $job['next'] = $job['period'] + REQUEST_TIME;
+    drupal_write_record('job_schedule', $job, array('name', 'type', 'id'));
+  }
+
+  /**
    * Remove a job from the schedule, replace any existing job.
    *
-   * A job is uniquely identified by $job = array(callbac, type, id).
+   * A job is uniquely identified by $job = array(type, id).
    */
   public function remove($job) {
-    db_query("DELETE FROM {job_schedule} WHERE callback = '%s' AND type = '%s' AND id = %d", $job['callback'], $job['type'], isset($job['id']) ? $job['id'] : 0);
+    db_delete('job_schedule')
+      ->condition('name', $this->name)
+      ->condition('type', $job['type'])
+      ->condition('id', isset($job['id']) ? $job['id'] : 0)
+      ->execute();
   }
 
   /**
-   * Remove all jobs for a given callback and type.
+   * Remove all jobs for a given type.
    */
-  public function removeAll($callback, $type) {
-    db_query("DELETE FROM {job_schedule} WHERE callback = '%s' AND type = '%s'", $callback, $type);
-    return db_affected_rows();
+  public function removeAll($type) {
+    db_delete('job_schedule')
+      ->condition('name', $this->name)
+      ->condition('type', $type)
+      ->execute();
   }
 
   /**
-   * Periodic cron task.
+   * Dispatches a job.
+   *
+   * Executes a worker callback or if schedule declares a queue name, queues a
+   * job for execution.
+   *
+   * @param $job
+   *   A $job array as passed into set() or read from job_schedule table.
+   *
+   * @throws Exception
+   *   Exceptions thrown by code called by this method are passed on.
    */
-  public function cron() {
-    // Check and set scheduler semaphore, take time.
-    if (variable_get('job_scheduler_cron', FALSE)) {
-      watchdog('JobScheduler', 'Last cron process did not finish.', array(), WATCHDOG_ERROR);
+  public function dispatch($job) {
+    $info = $this->info();
+    if (!$job['periodic']) {
+      $this->remove($job);
     }
-    variable_set('job_scheduler_cron', TRUE);
-    $start = time();
-
-    // Reschedule stuck periodic jobs after one hour.
-    db_query("UPDATE {job_schedule} SET scheduled = 0 WHERE scheduled < %d AND periodic = 1", JOB_SCHEDULER_REQUEST_TIME - 3600);
-
-    // Query and dispatch scheduled jobs.
-    $num = module_exists('drupal_queue') ? variable_get('job_schedule_queue_num', 200) : variable_get('job_schedule_num', 5);
-    $result = db_query_range("SELECT * FROM {job_schedule} WHERE scheduled = 0 AND next < %d ORDER BY next ASC", JOB_SCHEDULER_REQUEST_TIME, 0, $num);
-    while ($job = db_fetch_array($result)) {
-      // Flag periodic jobs as scheduled, remove one-off jobs.
-      if ($job['periodic']) {
-        $job['scheduled'] = $job['last'] = JOB_SCHEDULER_REQUEST_TIME;
-        $job['next'] = $job['period'] + JOB_SCHEDULER_REQUEST_TIME;
-        drupal_write_record('job_schedule', $job, array('callback', 'type', 'id'));
-      }
-      else {
-        $this->remove($job);
-      }
-      // Queue job if there is a queue declared for it, otherwise execute it.
-      if (function_exists($job['callback'])) {
-        if (!$this->queue($job)) {
-          $job['callback']($job);
-        }
+    if (!empty($info['queue name'])) {
+      if (DrupalQueue::get($info['queue name'])->createItem($job)) {
+        $this->reserve($job);
       }
     }
-
-    // Unflag and post a message that we're done.
-    variable_set('job_scheduler_cron', FALSE);
-    watchdog('JobScheduler', 'Finished processing schedule after !time.', array('!time' => format_interval(time() - $start)));
+    else {
+      $this->execute($job);
+    }
   }
 
   /**
-   * Add a job to a queue.
+   * Executes a job that
+   *
+   * @param $job
+   *   A $job array as passed into set() or read from job_schedule table.
+   *
+   * @throws Exception
+   *   Exceptions thrown by code called by this method are passed on.
    */
-  protected function queue($job) {
-    if (module_exists('drupal_queue')) {
-      drupal_queue_include();
-      if ($queue = drupal_queue_get($job['callback'])) {
-        if ($queue->createItem($job)) {
-          return TRUE;
-        }
-      }
+  public function execute($job) {
+    $info = $this->info();
+    // If the job is periodic, re-schedule it before calling the worker, just in case
+    if ($job['periodic']) {
+      $job['last'] = REQUEST_TIME;
+      $this->reschedule($job);
     }
-    return FALSE;
+    if (function_exists($info['worker callback'])) {
+      call_user_func($info['worker callback'], $job);
+    }
+    else {
+      // @todo If worker doesn't exist anymore we should do something about it, remove and throw exception?
+      $this->remove($job);
+      throw new JobSchedulerException('Could not find worker callback function: ' . $info['worker callback']);
+    }
+  }
+
+  /**
+   * Re-schedule a job if intended to run again
+   *
+   * (If cannot determine the next time, drop the job)
+   */
+  public function reschedule($job) {
+    $job['scheduled'] = 0;
+    if (!empty($job['crontab'])) {
+      $crontab = new JobSchedulerCronTab($job['crontab']);
+      $job['next'] = $crontab->nextTime($job['last']);
+    }
+    else {
+      $job['next'] = $job['last'] + $job['period'];
+    }
+
+    if ($job['next']) {
+      drupal_write_record('job_schedule', $job, array('item_id'));
+    }
+    else {
+      // If no next time, it may mean it wont run again the next year (crontab)
+      $this->remove($job);
+    }
+  }
+
+  /**
+   * Check whether a job exists in the queue and update its parameters if so
+   */
+  public function check($job) {
+    $job += array('id' => 0, 'period' => 0, 'crontab' => '');
+    $existing = db_select('job_schedule')
+      ->fields('job_schedule')
+      ->condition('name', $this->name)
+      ->condition('type', $job['type'])
+      ->condition('id', $job['id'])
+      ->execute()
+      ->fetchAssoc();
+    // If existing, and changed period or crontab, we need to reschedule the job
+    if ($existing) {
+      if ($job['period'] != $existing['period'] || $job['crontab'] != $existing['crontab']) {
+        $existing['period'] = $job['period'];
+        $existing['crontab'] = $job['crontab'];
+        $this->reschedule($existing);
+      }
+      return $existing;
+    }
   }
 }

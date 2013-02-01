@@ -1,4 +1,4 @@
-# $Id$
+# $Id: pl.po,v 1.1.2.2 2008/12/28 21:32:11 kuling Exp $
 #
 # Polski / Polish translation of Drupal (tagadelic.module)
 # Copyright 2008 Bartlomiej Opajdowski<bopajdowski@gmail.com>
@@ -123,4 +123,5 @@ msgstr "Tagadelic tworzy \"chmurę tagów\" z twoich terminów taksonomii."
 #: tagadelic.info:0
 msgid "Taxonomy"
 msgstr "Kategorie"
+
 

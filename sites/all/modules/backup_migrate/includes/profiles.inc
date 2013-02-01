@@ -71,8 +71,8 @@ function _backup_migrate_get_profile_form_item_options() {
  * Get a form to configure the profile.
  */
 function _backup_migrate_ui_backup_settings_form($profile) {
-  drupal_add_js(array('backup_migrate' => array('checkboxLinkText' => t('View as checkboxes'))), 'setting');
-  drupal_add_js(drupal_get_path('module', 'backup_migrate') .'/backup_migrate.js');
+  drupal_add_js(array('backup_migrate' => array('checkboxLinkText' => t('View as checkboxes'))), array('type' => 'setting'));
+  drupal_add_js(drupal_get_path('module', 'backup_migrate') .'/backup_migrate.js', array('type' => 'file', 'scope' => 'footer'));
   drupal_add_css(drupal_get_path('module', 'backup_migrate') .'/backup_migrate.css');
 
   backup_migrate_include('files', 'destinations', 'filters');
@@ -91,21 +91,20 @@ function _backup_migrate_ui_backup_settings_form($profile) {
     "#title" => t("Backup file name"),
     "#default_value" => $profile->filename,
   );
-  if (module_exists('token')) {
-    $form['file']['token_help'] = array(
-      '#title' => t('Replacement patterns'),
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-    );
-    $form['file']['token_help']['help'] = array(
-      '#value' => theme('token_help', 'global'),
-    );
-    $form['file']['filename']['#description'] = t('You can use tokens in the file name.');
-  }
-  else {
-    $form['file']['filename']['#description'] = t('If you install the <a href="!tokenurl">Token Module</a> you can use tokens in the file name.', array('!tokenurl' => 'http://drupal.org/project/token'));
-  }
+  $form['file']['filename']['#description'] = t('You can use tokens in the file name.');
+
+  $form['file']['token_help'] = array(
+    '#title' => t('Replacement patterns'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['file']['token_help']['help'] = array(
+    '#theme' => 'token_tree',
+    '#token_types' => array('current-date', 'site'),
+    '#global_types' => FALSE,
+  );
+
   $form['file']['append_timestamp'] = array(
     "#type" => "checkbox",
     "#title" => t("Append a timestamp."),

@@ -8,31 +8,39 @@
 feeds_include_library('PuSHSubscriber.inc', 'PuSHSubscriber');
 
 /**
- * Definition of the import batch object created on the fetching stage by
- * FeedsHTTPFetcher.
+ * Result of FeedsHTTPFetcher::fetch().
  */
-class FeedsHTTPBatch extends FeedsImportBatch {
+class FeedsHTTPFetcherResult extends FeedsFetcherResult {
   protected $url;
   protected $file_path;
+  protected $timeout;
 
   /**
    * Constructor.
    */
-  public function __construct($url = NULL, $feed_nid) {
+  public function __construct($url = NULL) {
     $this->url = $url;
-    parent::__construct('', $feed_nid);
+    parent::__construct('');
   }
 
   /**
-   * Implementation of FeedsImportBatch::getRaw();
+   * Overrides FeedsFetcherResult::getRaw();
    */
   public function getRaw() {
     feeds_include_library('http_request.inc', 'http_request');
-    $result = http_request_get($this->url);
+    $result = http_request_get($this->url, NULL, NULL, NULL, $this->timeout);
     if (!in_array($result->code, array(200, 201, 202, 203, 204, 205, 206))) {
       throw new Exception(t('Download of @url failed with code !code.', array('@url' => $this->url, '!code' => $result->code)));
     }
-    return $result->data;
+    return $this->sanitizeRaw($result->data);
+  }
+
+  public function getTimeout() {
+    return $this->timeout;
+  }
+
+  public function setTimeout($timeout) {
+    $this->timeout = $timeout;
   }
 }
 
@@ -47,9 +55,12 @@ class FeedsHTTPFetcher extends FeedsFetcher {
   public function fetch(FeedsSource $source) {
     $source_config = $source->getConfigFor($this);
     if ($this->config['use_pubsubhubbub'] && ($raw = $this->subscriber($source->feed_nid)->receive())) {
-      return new FeedsImportBatch($raw, $source->feed_nid);
+      return new FeedsFetcherResult($raw);
     }
-    return new FeedsHTTPBatch($source_config['source'], $source->feed_nid);
+    $fetcher_result = new FeedsHTTPFetcherResult($source_config['source']);
+    // When request_timeout is empty, the global value is used.
+    $fetcher_result->setTimeout($this->config['request_timeout']);
+    return $fetcher_result;
   }
 
   /**
@@ -80,12 +91,12 @@ class FeedsHTTPFetcher extends FeedsFetcher {
       catch (Exception $e) {
         // In case of an error, respond with a 503 Service (temporary) unavailable.
         header('HTTP/1.1 503 "Not Found"', NULL, 503);
-        exit();
+        drupal_exit();
       }
     }
     // Will generate the default 200 response.
     header('HTTP/1.1 200 "OK"', NULL, 200);
-    exit();
+    drupal_exit();
   }
 
   /**
@@ -96,6 +107,7 @@ class FeedsHTTPFetcher extends FeedsFetcher {
       'auto_detect_feeds' => FALSE,
       'use_pubsubhubbub' => FALSE,
       'designated_hub' => '',
+      'request_timeout' => NULL,
     );
   }
 
@@ -121,11 +133,22 @@ class FeedsHTTPFetcher extends FeedsFetcher {
       '#title' => t('Designated hub'),
       '#description' => t('Enter the URL of a designated PubSubHubbub hub (e. g. superfeedr.com). If given, this hub will be used instead of the hub specified in the actual feed.'),
       '#default_value' => $this->config['designated_hub'],
-      '#process' => array('ctools_dependent_process'),
       '#dependency' => array(
         'edit-use-pubsubhubbub' => array(1),
       ),
     );
+   // Per importer override of global http request timeout setting.
+   $form['request_timeout'] = array(
+     '#type' => 'textfield',
+     '#title' => t('Request timeout'),
+     '#description' => t('Timeout in seconds to wait for an HTTP get request to finish.</br>' .
+                         '<b>Note:</b> this setting will override the global setting.</br>' .
+                         'When left empty, the global value is used.'),
+     '#default_value' => $this->config['request_timeout'],
+     '#element_validate' => array('element_validate_integer_positive'),
+     '#maxlength' => 3,
+     '#size'=> 30,
+   );
     return $form;
   }
 
@@ -168,7 +191,15 @@ class FeedsHTTPFetcher extends FeedsFetcher {
    */
   public function sourceSave(FeedsSource $source) {
     if ($this->config['use_pubsubhubbub']) {
-      $this->subscribe($source);
+      // If this is a feeds node we want to delay the subscription to
+      // feeds_exit() to avoid transaction race conditions.
+      if ($source->feed_nid) {
+        $job = array('fetcher' => $this, 'source' => $source);
+        feeds_set_subscription_job($job);
+      }
+      else {
+        $this->subscribe($source);
+      }
     }
   }
 
@@ -177,7 +208,20 @@ class FeedsHTTPFetcher extends FeedsFetcher {
    */
   public function sourceDelete(FeedsSource $source) {
     if ($this->config['use_pubsubhubbub']) {
-      $this->unsubscribe($source);
+      // If we're in a feed node, queue the unsubscribe,
+      // else process immediately.
+      if ($source->feed_nid) {
+        $job = array(
+          'type' => $source->id,
+          'id' => $source->feed_nid,
+          'period' => 0,
+          'periodic' => FALSE,
+        );
+        JobScheduler::get('feeds_push_unsubscribe')->set($job);
+      }
+      else {
+        $this->unsubscribe($source);
+      }
     }
   }
 
@@ -231,7 +275,7 @@ class PuSHSubscription implements PuSHSubscriptionInterface {
    * Load a subscription.
    */
   public static function load($domain, $subscriber_id) {
-    if ($v = db_fetch_array(db_query("SELECT * FROM {feeds_push_subscriptions} WHERE domain = '%s' AND subscriber_id = %d", $domain, $subscriber_id))) {
+    if ($v = db_query("SELECT * FROM {feeds_push_subscriptions} WHERE domain = :domain AND subscriber_id = :sid", array(':domain' => $domain, ':sid' => $subscriber_id))->fetchAssoc()) {
       $v['post_fields'] = unserialize($v['post_fields']);
       return new PuSHSubscription($v['domain'], $v['subscriber_id'], $v['hub'], $v['topic'], $v['secret'], $v['status'], $v['post_fields'], $v['timestamp']);
     }
@@ -263,7 +307,10 @@ class PuSHSubscription implements PuSHSubscriptionInterface {
    * Delete a subscription.
    */
   public function delete() {
-    db_query("DELETE FROM {feeds_push_subscriptions} WHERE domain = '%s' AND subscriber_id = %d", $this->domain, $this->subscriber_id);
+    db_delete('feeds_push_subscriptions')
+      ->condition('domain', $this->domain)
+      ->condition('subscriber_id', $this->subscriber_id)
+      ->execute();
   }
 }
 
@@ -286,7 +333,7 @@ class PuSHEnvironment implements PuSHSubscriberEnvironmentInterface {
    * Implements PuSHSubscriberEnvironmentInterface::msg().
    */
   public function msg($msg, $level = 'status') {
-    drupal_set_message($msg, $level);
+    drupal_set_message(check_plain($msg), $level);
   }
 
   /**

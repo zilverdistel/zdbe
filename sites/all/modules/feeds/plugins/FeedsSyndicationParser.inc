@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Contains FeedsSyndicationParser and related classes.
+ */
+
+/**
  * Class definition for Common Syndication Parser.
  *
  * Parses RSS and Atom feeds.
@@ -8,24 +13,26 @@
 class FeedsSyndicationParser extends FeedsParser {
 
   /**
-   * Implementation of FeedsParser::parse().
+   * Implements FeedsParser::parse().
    */
-  public function parse(FeedsImportBatch $batch, FeedsSource $source) {
+  public function parse(FeedsSource $source, FeedsFetcherResult $fetcher_result) {
     feeds_include_library('common_syndication_parser.inc', 'common_syndication_parser');
-    $result = common_syndication_parser_parse($batch->getRaw());
-    $batch->title = $result['title'];
-    $batch->description = $result['description'];
-    $batch->link = $result['link'];
-    if (is_array($result['items'])) {
-      foreach ($result['items'] as $item) {
+    $feed = common_syndication_parser_parse($fetcher_result->getRaw());
+    $result = new FeedsParserResult();
+    $result->title = $feed['title'];
+    $result->description = $feed['description'];
+    $result->link = $feed['link'];
+    if (is_array($feed['items'])) {
+      foreach ($feed['items'] as $item) {
         if (isset($item['geolocations'])) {
           foreach ($item['geolocations'] as $k => $v) {
             $item['geolocations'][$k] = new FeedsGeoTermElement($v);
           }
         }
-        $batch->items[] = $item;
+        $result->items[] = $item;
       }
     }
+    return $result;
   }
 
   /**
@@ -69,6 +76,6 @@ class FeedsSyndicationParser extends FeedsParser {
         'name' => t('Geo Locations'),
         'description' => t('An array of geographic locations with a name and a position.'),
       ),
-     ) + parent::getMappingSources();
+    ) + parent::getMappingSources();
   }
 }

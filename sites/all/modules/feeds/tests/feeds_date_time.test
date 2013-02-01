@@ -13,6 +13,8 @@
  * Feeds at some time.
  */
 class FeedsDateTimeTest extends FeedsWebTestCase {
+  protected $profile = 'testing';
+
   public static function getInfo() {
     return array(
       'name' => 'FeedsDateTime unit tests',
@@ -23,10 +25,7 @@ class FeedsDateTimeTest extends FeedsWebTestCase {
 
   public function setUp() {
     parent::setUp();
-
-    // Trick feeds into loading the FeedsParser class file.
-    // @todo: break out FeedsElement and children into its own include file.
-    feeds_plugin_instance('FeedsCSVParser', 'test');
+    module_load_include('inc', 'feeds' , 'plugins/FeedsParser');
   }
 
   /**

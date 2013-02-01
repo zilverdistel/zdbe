@@ -1,11 +1,13 @@
-; $Id: url_alter.info,v 1.2 2009/03/21 19:19:32 davereid Exp $
-name = Url alter
-description = "Utility module that adds new hook_url_alter() hooks for other modules to implement. Also replaces the need for custom_url_rewrite() functions in settings.php."
-core = 6.x
+name = URL alter
+description = Provides an interface that replaces the need for custom_url_rewrite() functions in settings.php.
+core = 7.x
+files[] = url_alter.module
+files[] = url_alter.admin.inc
+files[] = url_alter.install
 
-; Information added by drupal.org packaging script on 2009-10-31
-version = "6.x-1.2"
-core = "6.x"
+; Information added by drupal.org packaging script on 2011-02-25
+version = "7.x-1.x-dev"
+core = "7.x"
 project = "url_alter"
-datestamp = "1256953595"
+datestamp = "1298620567"
 

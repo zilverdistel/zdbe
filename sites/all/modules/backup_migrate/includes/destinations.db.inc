@@ -13,6 +13,9 @@
  */
 class backup_migrate_destination_db extends backup_migrate_destination_remote {
   var $supported_ops = array('scheduled backup', 'manual backup', 'configure', 'source');
+  var $db_target = 'default';
+  var $connection = null;
+
 
   function type_name() {
     return t("Database");
@@ -40,7 +43,7 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
   function edit_form() {
     $form = parent::edit_form();
     $form['scheme']['#title'] = t('Database type');
-    $form['scheme']['#options'] = array($GLOBALS['db_type'] => $GLOBALS['db_type']);
+//    $form['scheme']['#options'] = array($GLOBALS['db_type'] => $GLOBALS['db_type']);
     $form['scheme']['#description'] = t('The type of the database. Drupal only supports one database type at a time, so this must be the same as the current database type.');
     $form['path']['#title'] = t('Database name');
     $form['path']['#description'] = t('The name of the database. The database must exist, it will not be created for you.');
@@ -69,14 +72,24 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
   function backup_settings_default() {
     $core = array(
         'cache',
+        'cache_admin_menu',
+        'cache_browscap',
+        'cache_content',
         'cache_filter',
         'cache_calendar_ical',
+        'cache_location',
         'cache_menu',
         'cache_page',
+        'cache_reptag',
         'cache_views',
+        'cache_views_data',
         'cache_block',
         'cache_update',
         'cache_form',
+        'cache_bootstrap',
+        'cache_field',
+        'cache_image',
+        'cache_path',
         'sessions',
         'search_dataset',
         'search_index',
@@ -133,17 +146,12 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
     $file->push_type($this->get_file_type_id());
 
     backup_migrate_filters_invoke_all('pre_backup', $this, $file, $settings);
+    //$this->lock_tables($settings);
 
     // Switch to a different db if specified.
-    $this->switch_db();
-
-    $this->lock_tables($settings);
     $success = $this->_backup_db_to_file($file, $settings);
-    $this->unlock_tables($settings);
 
-    // Switch back to the previous db.
-    $this->switch_db(TRUE);
-
+    //$this->unlock_tables($settings);
     backup_migrate_filters_invoke_all('post_backup', $this, $file, $settings, $success);
 
     return $success ? $file : FALSE;
@@ -162,19 +170,53 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
     else {
       backup_migrate_filters_invoke_all('pre_restore', $file, $settings);
 
-      // Switch to a different db if specified.
-      $this->switch_db();
-
       // Restore the database.
       $num = $this->_restore_db_from_file($file, $settings);
       $settings->performed_action = $num ? t('%num SQL commands executed.', array('%num' => $num)) : '';
 
-      // Switch back to the previous db.
-      $this->switch_db(TRUE);
-
       backup_migrate_filters_invoke_all('post_restore', $file, $settings, $num);
     }
     return $num;
+  }
+
+  /**
+   * Get the db connection for the specified db.
+   */
+  function _get_db_connection() {
+    if (!$this->connection) {
+      $target = $key = '';
+      $parts = explode(':', $this->get_id());
+      // One of the predefined databases (set in settings.php)
+      if ($parts[0] == 'db') {
+        $key    = empty($parts[1]) ? 'default' : $parts[1];
+        $target = empty($parts[2]) ? 'default' : $parts[2];
+      }
+      // Another db url.
+      else {
+        // If the url is specified build it into a connection info array.
+        if (!empty($this->dest_url)) {
+          $info = array(
+            'driver'    => empty($this->dest_url['scheme'])   ? NULL : $this->dest_url['scheme'],
+            'host'      => empty($this->dest_url['host'])     ? NULL : $this->dest_url['host'],
+            'port'      => empty($this->dest_url['port'])     ? NULL : $this->dest_url['port'],
+            'username'  => empty($this->dest_url['user'])     ? NULL : $this->dest_url['user'],
+            'password'  => empty($this->dest_url['pass'])     ? NULL : $this->dest_url['pass'],
+            'database'  => empty($this->dest_url['path'])     ? NULL : $this->dest_url['path'], 
+          );
+          $key    = uniqid('backup_migrate_tmp_');
+          $target = 'default';
+          Database::addConnectionInfo($key, $target, $info);
+        }
+        // No database selected. Assume the default.
+        else {
+          $key = $target = 'default';
+        }
+      }
+      if ($target && $key) {
+        $this->connection = Database::getConnection($target, $key);
+      }
+    }
+    return $this->connection;
   }
 
   /**
@@ -195,11 +237,8 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
    * Get a list of tables in the database.
    */
   function get_table_names() {
-    // Switch to a different db if specified.
-    $this->switch_db();
     // Must be overridden.
     $out = $this->_get_table_names();
-    $this->switch_db(TRUE);
     return $out;
   }
 
@@ -209,32 +248,6 @@ class backup_migrate_destination_db extends backup_migrate_destination_remote {
   function _get_table_names() {
     // Must be overridden.
     return array();
-  }
-
-  /**
-   * Switch to the current database. Pass true to switch back to the previous db.
-   */
-  function switch_db($switch_back = FALSE) {
-    static $db_stack = array();
-    global $db_url;
-  
-    // If switch back is specified, pop the previous db and activate it.
-    if ($switch_back && $db_stack) {
-      db_set_active(array_pop($db_stack));
-      return;
-    }
-  
-    // If there is a valid DB URL, switch to it.
-    if ($url = $this->get_location()) {
-      // Make the db_url into an array if needed.
-      if (!is_array($db_url)) {
-        $db_url = array('default' => $db_url);
-      }
-      // Add the new db to the db_url array.
-      $db_url[$url] = $url;
-      // Switch to the new db and push the old one on the stack
-      $db_stack[] = db_set_active($url);
-    }
   }
 
   /**

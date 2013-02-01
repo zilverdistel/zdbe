@@ -1,42 +1,61 @@
 <?php
-// $Id: site_verify.admin.inc,v 1.14.2.3 2011/02/20 22:38:43 davereid Exp $
+// $Id: site_verify.admin.inc,v 1.21 2011/02/20 22:37:54 davereid Exp $
 
 function site_verify_list() {
   $engines = site_verify_get_engines();
+  $destination = drupal_get_destination();
 
-  $headers = array(
-    t('Engine'),
-    t('Meta tag'),
-    t('File'),
-    array('data' => t('Operations'), 'colspan' => 2),
+  $header = array(
+    array('data' => t('Engine'), 'field' => 'engine'),
+    array('data' => t('Meta tag'), 'field' => 'meta'),
+    array('data' => t('File'), 'field' => 'file'),
+    array('data' => t('Operations')),
   );
+
+  $query = db_select('site_verify');
+  $query->fields('site_verify');
+  $query->extend('TableSort')->orderByHeader($header);
+  //$query->extend('PagerDefault')->limit(50);
+  $verifications = $query->execute();
+
   $rows = array();
-
-  $query = db_query("SELECT svid, engine, file, meta FROM {site_verify}");
-  while ($record = db_fetch_object($query)) {
-    $row_key = $engines[$record->engine]['key'] . $record->svid;
-    $rows[$row_key] = array(
-      $engines[$record->engine]['name'],
-      $record->meta ? '<span title="' . check_plain(truncate_utf8($record->meta, 48)) . '">' . t('Yes') . '</spam>' : t('No'),
-      $record->file ? l($record->file, $record->file) : t('None'),
-      l(t('Edit'), "admin/build/site-verify/{$record->svid}/edit"),
-      l(t('Delete'), "admin/build/site-verify/{$record->svid}/delete"),
+  foreach ($verifications as $verification) {
+    $row = array('data' => array());
+    $row['data'][] = $engines[$verification->engine]['name'];
+    $row['data'][] = $verification->meta ? '<span title="' . check_plain(truncate_utf8($verification->meta, 48)) . '">' . t('Yes') . '</spam>' : t('No');
+    $row['data'][] = $verification->file ? l($verification->file, $verification->file) : t('None');
+    $operations = array();
+    $operations['edit'] = array(
+      'title' => t('Edit'),
+      'href' => "admin/config/search/verifications/{$verification->svid}/edit",
+      'query' => $destination,
     );
+    $operations['delete'] = array(
+      'title' => t('Delete'),
+      'href' => "admin/config/search/verifications/{$verification->svid}/delete",
+      'query' => $destination,
+    );
+    $row['data']['operations'] = array(
+      'data' => array(
+        '#theme' => 'links',
+        '#links' => $operations,
+        '#attributes' => array('class' => array('links', 'inline')),
+      ),
+    );
+    $rows[] = $row;
   }
-  ksort($rows);
 
-  if (!$rows) {
-    $rows[] = array(array(
-      'data' => t('No verifications available. <a href="@add">Add verification</a>.', array('@add' => url('admin/build/site-verify/add'))),
-      'colspan' => 5,
-    ));
-  }
-
-  $output = theme('table', $headers, $rows);
-  return $output;
+  $build['verification_tabe'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('No verifications available. <a href="@add">Add verification</a>.', array('@add' => url('admin/config/search/verifications/add'))),
+  );
+  //$build['verification_pager'] = array('#theme' => 'pager');
+  return $build;
 }
 
-function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) {
+function site_verify_edit_form($form, &$form_state, $record = array(), $engine = NULL) {
   if (!isset($form_state['storage']['step'])) {
     $record += array(
       'svid' => NULL,
@@ -52,6 +71,8 @@ function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) 
     $record = $form_state['storage']['record'];
   }
 
+  $form['actions'] = array('#type' => 'actions');
+
   switch ($form_state['storage']['step']) {
     case 1:
       $engines = site_verify_get_engines();
@@ -61,19 +82,12 @@ function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) 
       }
       asort($options);
 
-      // Ensure custom is always last.
-      if (isset($options['custom'])) {
-        $custom = $options['custom'];
-        unset($options['custom']);
-        $options['custom'] = $custom;
-      }
-
       $form['engine'] = array(
         '#type' => 'select',
         '#title' => t('Search engine'),
         '#options' => $options,
       );
-      $form['next'] = array(
+      $form['actions']['next'] = array(
         '#type' => 'submit',
         '#value' => t('Next'),
       );
@@ -139,7 +153,7 @@ function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) 
         $form['#attributes'] = array('enctype' => 'multipart/form-data');
       }
 
-      $form['submit'] = array(
+      $form['actions']['submit'] = array(
         '#type' => 'submit',
         '#value' => t('Save'),
         '#weight' => 10,
@@ -147,9 +161,11 @@ function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) 
       break;
   }
 
-  $form['cancel'] = array(
-    '#value' => l(t('Cancel'), 'admin/build/site-verify'),
-    '#weight' => 11,
+  $form['actions']['cancel'] = array(
+    '#type' => 'link',
+    '#href' => isset($_GET['destination']) ? $_GET['destination'] : 'admin/config/search/verifications',
+    '#title' => t('Cancel'),
+    '#weight' => 15,
   );
 
   return $form;
@@ -158,13 +174,14 @@ function site_verify_edit_form(&$form_state, $record = array(), $engine = NULL) 
 /**
  * Validation callback; save the uploaded file and check file name uniqueness.
  */
-function site_verify_validate_file(&$form, &$form_state) {
+function site_verify_validate_file($form, &$form_state) {
   $values = &$form_state['values'];
 
   // Import the uploaded verification file.
-  if ($file = file_save_upload('file_upload', array(), FALSE, FILE_EXISTS_REPLACE)) {
-    $contents = @file_get_contents($file->filepath);
-    file_delete($file->filepath);
+  $validators = array('file_validate_extensions' => array());
+  if ($file = file_save_upload('file_upload', $validators, FALSE, FILE_EXISTS_REPLACE)) {
+    $contents = @file_get_contents($file->uri);
+    file_delete($file);
     if ($contents === FALSE) {
       drupal_set_message(t('The verification file import failed, because the file %filename could not be read.', array('%filename' => $file->filename)), 'error');
     }
@@ -176,7 +193,7 @@ function site_verify_validate_file(&$form, &$form_state) {
   }
 
   if ($values['file']) {
-    $existing_file = db_result(db_query("SELECT svid FROM {site_verify} WHERE LOWER(file) = LOWER('%s') AND svid <> %d", $values['file'], $values['svid']));
+    $existing_file = db_query("SELECT svid FROM {site_verify} WHERE LOWER(file) = LOWER(:file) AND svid <> :svid", array(':file' => $values['file'], 'svid' => $values['svid']))->fetchField();
     if ($existing_file) {
       form_set_error('file', t('The file %filename is already being used in another verification.', array('%filename' => $values['file'])));
     }
@@ -186,7 +203,7 @@ function site_verify_validate_file(&$form, &$form_state) {
 /**
  * Submission callback; send form to the next step or save the verification.
  */
-function site_verify_edit_form_submit(&$form, &$form_state) {
+function site_verify_edit_form_submit($form, &$form_state) {
   if ($form_state['storage']['step'] == 1) {
     // Send the form to step 2 (verification details).
     $form_state['storage']['record']['engine'] = site_verify_engine_load($form_state['values']['engine']);
@@ -203,19 +220,17 @@ function site_verify_edit_form_submit(&$form, &$form_state) {
     }
 
     drupal_set_message(t('Verification saved.'));
-    $form_state['storage'] = $form_state['rebuild'] = FALSE;
-    $form_state['redirect'] = 'admin/build/site-verify';
+    $form_state['storage'] = $form_state['rebuild'] = NULL;
+    $form_state['redirect'] = 'admin/config/search/verifications';
 
-    // The menu needs to be rebuilt if the page URL has changed or reset.
-    variable_set('menu_rebuild_needed', TRUE);
-
-    // Also clear front page caches.
+    // Clear front page caches and set the menu to be rebuilt.
     cache_clear_all(url('<front>', array('absolute' => TRUE)), 'cache_page');
     cache_clear_all(url(variable_get('site_frontpage', 'node'), array('absolute' => TRUE)), 'cache_page');
+    variable_set('menu_rebuild_needed', TRUE);
   }
 }
 
-function site_verify_delete_form($form_state, $record) {
+function site_verify_delete_form($form, $form_state, $record) {
   $form['record'] = array(
     '#type' => 'value',
     '#value' => $record,
@@ -224,7 +239,7 @@ function site_verify_delete_form($form_state, $record) {
   return confirm_form(
     $form,
     t('Are you sure you want to delete the site verification for %engine?', array('%engine' => $record['engine']['name'])),
-    'admin/build/site-verify',
+    'admin/config/search/verifications',
     t('This action cannot be undone.'),
     t('Delete'),
     t('Cancel')
@@ -233,10 +248,15 @@ function site_verify_delete_form($form_state, $record) {
 
 function site_verify_delete_form_submit($form, &$form_state) {
   $record = $form_state['values']['record'];
-  db_query("DELETE FROM {site_verify} WHERE svid = %d", $record['svid']);
+  db_delete('site_verify')->condition('svid', $record['svid'])->execute();
   drupal_set_message(t('Verification for %engine has been deleted.', array('%engine' => $record['engine']['name'])));
   watchdog('site_verify', 'Verification for %engine deleted.', array('%engine' => $record['engine']['name']), WATCHDOG_NOTICE);
-  $form_state['redirect'] = 'admin/build/site-verify';
+  $form_state['redirect'] = 'admin/config/search/verifications';
+
+  // Clear front page caches and set the menu to be rebuilt.
+  cache_clear_all(url('<front>', array('absolute' => TRUE)), 'cache_page');
+  cache_clear_all(url(variable_get('site_frontpage', 'node'), array('absolute' => TRUE)), 'cache_page');
+  variable_set('menu_rebuild_needed', TRUE);
 }
 
 function site_verify_validate_meta_google($element, &$form_state) {

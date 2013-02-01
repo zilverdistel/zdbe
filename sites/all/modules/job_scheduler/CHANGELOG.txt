@@ -1,4 +1,20 @@
-$Id: CHANGELOG.txt,v 1.6 2010/09/14 19:09:49 alexb Exp $
+
+Job Scheduler 7.x xxxxxxxxxxxxxxxxxxxxxxx
+-----------------------------------------
+
+- Jose Reyero: Auto schedule jobs.
+- Jose Reyero: Reschedule jobs from hook implementation.
+- Jose Reyero: Provide crontab style scheduling.
+- Jose Reyero: Provide triggers.
+
+Job Scheduler 7.x 2.0 Alpha 1, 2010-09-29
+-----------------------------------------
+
+- #922702: Fix Drupal Queue integration.
+  Note: JobScheduler API has changed significantly, API users must declare
+  callbacks with hook_cron_job_scheduler_info() and the call signature for
+  managing jobs has changed. Please review README.txt.
+- Upgrade to Drupal 7.
 
 Job Scheduler 6.x 1.0 Beta 3, 2010-09-14
 ----------------------------------------

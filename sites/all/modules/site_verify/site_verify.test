@@ -1,5 +1,5 @@
 <?php
-// $Id: site_verify.test,v 1.1.2.2 2010/09/30 00:19:52 davereid Exp $
+// $Id: site_verify.test,v 1.1 2010/09/30 00:16:21 davereid Exp $
 
 /**
  * @file
@@ -16,20 +16,20 @@ class SiteVerifyFunctionalTestCase extends DrupalWebTestCase {
   }
 
   function setUp() {
-    parent::setUp('site_verify');
+    parent::setUp(array('site_verify'));
 
     $user = $this->drupalCreateUser(array('administer site configuration'));
     $this->drupalLogin($user);
   }
 
   function testMetaTag() {
-    $this->drupalGet('admin/build/site-verify');
+    $this->drupalGet('admin/config/search/verifications');
     $this->assertText('No verifications available.');
     $this->clickLink('Add verification');
 
     // Add a dummy Google meta tag.
     $edit = array('engine' => 'google');
-    $this->drupalPost('admin/build/site-verify/add', $edit, t('Next'));
+    $this->drupalPost('admin/config/search/verifications/add', $edit, t('Next'));
     $meta_tag = '<meta name="google-site-verification" content="' . $this->randomName() . '">';
     $edit = array('meta' => $meta_tag);
     $this->drupalPost(NULL, $edit, t('Save'));
@@ -41,7 +41,7 @@ class SiteVerifyFunctionalTestCase extends DrupalWebTestCase {
     $this->assertRaw($meta_tag, 'Verification code displayed on front page.');
 
     // Now try to delete it.
-    $this->drupalGet('admin/build/site-verify');
+    $this->drupalGet('admin/config/search/verifications');
     $this->clickLink('Delete');
     $this->drupalPost(NULL, array(), t('Delete'));
     $this->assertText('Verification for Google has been deleted.');

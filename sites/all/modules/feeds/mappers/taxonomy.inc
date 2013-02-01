@@ -6,12 +6,14 @@
  */
 
 /**
- * Implementation of hook_feeds_parser_sources_alter().
+ * Implements hook_feeds_parser_sources_alter().
+ *
+ * @todo: Upgrade to 7.
  */
 function taxonomy_feeds_parser_sources_alter(&$sources, $content_type) {
   if (!empty($content_type)) {
     foreach (taxonomy_get_vocabularies($content_type) as $vocabulary) {
-      $sources['parent:taxonomy:'. taxonomy_vocabulary_id($vocabulary)] = array(
+      $sources['parent:taxonomy:' . $vocabulary->machine_name] = array(
         'name' => t('Feed node: Taxonomy: @vocabulary', array('@vocabulary' => $vocabulary->name)),
         'description' => t('Taxonomy terms from feed node in given vocabulary.'),
         'callback' => 'taxonomy_feeds_get_source',
@@ -23,10 +25,11 @@ function taxonomy_feeds_parser_sources_alter(&$sources, $content_type) {
 /**
  * Callback, returns taxonomy from feed node.
  */
-function taxonomy_feeds_get_source(FeedsImportBatch $batch, $key) {
-  if ($node = node_load($batch->feed_nid)) {
-    $terms = taxonomy_node_get_terms($node);
-    $vocabulary = taxonomy_get_vocabulary(str_replace('parent:taxonomy:', '', $key));
+function taxonomy_feeds_get_source(FeedsSource $source, FeedsParserResult $result, $key) {
+  if ($node = node_load($source->feed_nid)) {
+    $terms = taxonomy_feeds_node_get_terms($node);
+    $vocabularies = taxonomy_vocabulary_load_multiple(array(), array('machine_name' => str_replace('parent:taxonomy:', '', $key)));
+    $vocabulary = array_shift($vocabularies);
     $result = array();
     foreach ($terms as $tid => $term) {
       if ($term->vid == $vocabulary->vid) {
@@ -38,155 +41,146 @@ function taxonomy_feeds_get_source(FeedsImportBatch $batch, $key) {
 }
 
 /**
- * Implementation of hook_feeds_node_processor_targets_alter().
- *
- * @see FeedsNodeProcessor::getMappingTargets().
+ * Implements hook_feeds_processor_targets_alter().
  */
-function taxonomy_feeds_node_processor_targets_alter(&$targets, $content_type) {
-  foreach (taxonomy_get_vocabularies($content_type) as $vocabulary) {
-    $description = t('The @name vocabulary of the node. If this is a "Tags" vocabulary, any new terms will be created on import. Otherwise only existing terms will be used. If this is not a "Tags" vocabulary and not a "Multiple select" vocabulary, only the first available term will be created. See !settings.', array('@name' => $vocabulary->name, '!settings' => l(t('vocabulary settings'), 'admin/content/taxonomy/edit/vocabulary/'. $vocabulary->vid, array('query' => 'destination='. $_GET['q']))));
-
-    $targets['taxonomy:'. taxonomy_vocabulary_id($vocabulary)] = array(
-      'name' => t('Taxonomy: @name', array('@name' => $vocabulary->name)),
-      'callback' => 'taxonomy_feeds_set_target',
-      'description' => check_plain($description),
-      'real_target' => 'taxonomy',
-    );
+function taxonomy_feeds_processor_targets_alter(&$targets, $entity_type, $bundle_name) {
+  foreach (field_info_instances($entity_type, $bundle_name) as $name => $instance) {
+    $info = field_info_field($name);
+    if ($info['type'] == 'taxonomy_term_reference') {
+      $targets[$name] = array(
+        'name' => check_plain($instance['label']),
+        'callback' => 'taxonomy_feeds_set_target',
+        'description' => t('The @label field of the node.', array('@label' => $instance['label'])),
+      );
+    }
   }
 }
 
 /**
  * Callback for mapping. Here is where the actual mapping happens.
  *
- * @param $node
- *   Reference to the node object we are working on.
- *
- * @param $key
- *   A key as added to the $targets array by
- *   taxonomy_feeds_node_processor_targets_alter().
- *
- * @param $terms
- *   Given terms as array.
- *
- * Add the given terms to the node object so the taxonomy module can add them
- * on node_save().
+ * @todo Do not create new terms for non-autotag fields.
  */
-function taxonomy_feeds_set_target(&$node, $key, $terms) {
-
-  // Return if there are no terms.
+function taxonomy_feeds_set_target($source, $entity, $target, $terms) {
   if (empty($terms)) {
     return;
   }
 
-  // Load target vocabulary to check, if it has the "tags" flag.
-  $vocabulary = taxonomy_get_vocabulary(str_replace('taxonomy:', '', $key));
-
-  // Cast a given single string to an array so we can use it.
+  // Handle non-multiple values.
   if (!is_array($terms)) {
     $terms = array($terms);
   }
 
-  if (!isset($node->taxonomy)) {
-    $node->taxonomy = array();
-  }
+  $info = field_info_field($target);
 
-  if ($vocabulary->tags) {
-    if (!isset($node->taxonomy['tags'])) {
-      $node->taxonomy['tags'] = array();
-    }
-    foreach ($terms as $k => $v) {
-      // Make sure there aren't any terms with a comma (=tag delimiter) in it.
-      $terms[$k] = preg_replace('/\s*,\s*/', ' ', $v);
-    }
-    // Simply add a comma separated list to the node for a "tags" vocabulary.
-    if (isset($node->taxonomy['tags'][$vocabulary->vid])) {
-      $terms = array_merge($terms, drupal_explode_tags($node->taxonomy['tags'][$vocabulary->vid]));
-    }
-    $node->taxonomy['tags'][$vocabulary->vid] = implode(',', $terms);
+  // See http://drupal.org/node/881530
+  if (isset($info['settings']['allowed_values'][0]['vocabulary'])) {
+    $vocabulary = taxonomy_vocabulary_machine_name_load($info['settings']['allowed_values'][0]['vocabulary']);
   }
   else {
-    foreach ($terms as $term) {
-      if ($term instanceof FeedsTermElement) {
-        $node->taxonomy[$term->tid] = (object) $term;
-      }
-      // Check if a term already exists.
-      elseif ($terms_found = taxonomy_get_term_by_name_vid($term, $vocabulary->vid)) {
-        // If any terms are found add them to the node's taxonomy by found tid.
-        foreach ($terms_found as $term_found) {
-          $node->taxonomy[$term_found->tid] = $term_found;
-          if (!$vocabulary->multiple) {
-            break;
-          }
+    $vocabulary = taxonomy_vocabulary_load($info['settings']['allowed_values'][0]['vid']);
+  }
+
+  $i = 0;
+  $entity->$target = isset($entity->$target) ? $entity->$target : array();
+  foreach ($terms as $term) {
+    $tid = 0;
+    if ($term instanceof FeedsTermElement) {
+      $tid = $term->tid;
+    }
+    elseif (is_numeric($term)) {
+      $tid = $term;
+    }
+    elseif (is_string($term)) {
+      $tid = taxonomy_term_check_term($term, $vocabulary->vid);
+    }
+    if ($tid) {
+      $entity->{$target}['und'][$i]['tid'] = $tid;
+    }
+
+    if ($info['cardinality'] == 1) {
+      break;
+    }
+    $i++;
+  }
+}
+
+/**
+ * Find all terms associated with the given node, within one vocabulary.
+ */
+function taxonomy_feeds_node_get_terms($node, $key = 'tid') {
+  $terms = &drupal_static(__FUNCTION__);
+
+  if (!isset($terms[$node->nid][$key])) {
+    // Get tids from all taxonomy_term_reference fields.
+    $tids = array();
+    $fields = field_info_fields();
+    foreach ($fields as $field_name => $field) {
+      if ($field['type'] == 'taxonomy_term_reference' && field_info_instance('node', $field_name, $node->type)) {
+        if (($items = field_get_items('node', $node, $field_name)) && is_array($items)) {
+          $tids = array_merge($tids, array_map('_taxonomy_extract_tid', $items));
         }
       }
-      // If the vocab is not for multiple tags break after the first hit.
-      if (!$vocabulary->multiple) {
-        break;
-      }
+    }
+
+    // Load terms and cache them in static var.
+    $curr_terms = taxonomy_term_load_multiple($tids);
+    $terms[$node->nid][$key] = array();
+    foreach ($curr_terms as $term) {
+      $terms[$node->nid][$key][$term->$key] = $term;
     }
   }
+  return $terms[$node->nid][$key];
 }
 
 /**
- * Try to map a string to an existing term by name and vocabulary id.
+ * Helper function used in taxonomy_feeds_node_get_terms(). Extracts
+ * tid from array item returned by field_get_items().
  *
- * Provides a case-insensitive and trimmed mapping, to maximize the likelihood
- * of a successful match limited by a vocabulary id.
+ * @param $item tid information in a form of single element array (key == 'tid', value == tid we're looking for)
+ *
+ * @return tid extracted from $item.
+ *
+ * @see taxonomy_feeds_node_get_terms()
+ * @see field_get_items()
+ */
+function _taxonomy_extract_tid($item) {
+  return $item['tid'];
+}
+
+/**
+ * Checks whether a term identified by name and vocabulary exists. Creates a
+ * new term if it does not exist.
  *
  * @param $name
- *   Name of the term to search for.
- *
+ *   A term name.
  * @param $vid
- *   The vocabulary's ID.
+ *   A vocabulary id.
  *
  * @return
- *   An array of matching term objects.
+ *   A term id.
  */
-function taxonomy_get_term_by_name_vid($name, $vid) {
-  $db_result = db_query(db_rewrite_sql("SELECT t.tid, t.name FROM {term_data} t WHERE LOWER(t.name) = LOWER('%s') AND t.vid = %d", 't', 'tid'), trim($name), $vid);
-  $result = array();
-  while ($term = db_fetch_object($db_result)) {
-    $result[] = $term;
+function taxonomy_term_check_term($name, $vid) {
+  $name = trim($name);
+  $term = taxonomy_term_lookup_term($name, $vid);
+  if (empty($term)) {
+    $term = new stdClass();
+    $term->name = $name;
+    $term->vid = $vid;
+    taxonomy_term_save($term);
+    return $term->tid;
   }
-  return $result;
+  return $term->tid;
 }
 
 /**
- * Look up a vocabulary by vid or module name.
- *
- * @param $id
- *   A module name or a numeric vocabulary id.
- *
- * @return
- *   An object of type stdClass that represents a vocabulary.
+ * Looks up a term, assumes SQL storage backend.
  */
-function taxonomy_get_vocabulary($id) {
-  static $vocabularies;
-  if (!isset($vocabularies[$id])) {
-    foreach (taxonomy_get_vocabularies() as $vocabulary) {
-      if ($vocabulary->vid == $id) {
-        $vocabularies[$id] = $vocabulary;
-        break;
-      }
-      elseif ($vocabulary->module == $id) {
-        $vocabularies[$id] = $vocabulary;
-        break;
-      }
-    }
-  }
-  return $vocabularies[$id];
-}
-
-/**
- * Return the vocabulary identifier, the vocabulary's vid or module.
- *
- * @return
- *   Vocabulary's module name if it is a features vocabulary (= exportable),
- *   vocabulary's vid otherwise.
- */
-function taxonomy_vocabulary_id($vocabulary) {
-  if (strpos($vocabulary->module, 'features_') === 0) {
-    return $vocabulary->module;
-  }
-  return $vocabulary->vid;
+function taxonomy_term_lookup_term($name, $vid) {
+  return db_select('taxonomy_term_data', 'td')
+    ->fields('td', array('tid', 'name'))
+    ->condition('name', $name)
+    ->condition('vid', $vid)
+    ->execute()
+    ->fetchObject();
 }

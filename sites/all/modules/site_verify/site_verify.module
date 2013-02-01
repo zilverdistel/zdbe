@@ -1,59 +1,51 @@
 <?php
-// $Id: site_verify.module,v 1.10.2.1 2011/02/20 22:38:43 davereid Exp $
+// $Id: site_verify.module,v 1.17 2011/02/20 22:37:54 davereid Exp $
 
 /**
  * Implements hook_menu().
  */
 function site_verify_menu() {
-  $items['admin/build/site-verify'] = array(
-    'title' => 'Site verifications',
+  $items['admin/config/search/verifications'] = array(
+    'title' => 'Verifications',
     'description' => 'Add, change or remove verifications for your site.',
     'page callback' => 'site_verify_list',
     'access arguments' => array('administer site configuration'),
     'file' => 'site_verify.admin.inc',
   );
-  $items['admin/build/site-verify/list'] = array(
-    'title' => 'List',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-    'weight' => -10,
-  );
-  $items['admin/build/site-verify/add'] = array(
+  $items['admin/config/search/verifications/add'] = array(
     'title' => 'Add verification',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('site_verify_edit_form'),
     'access arguments' => array('administer site configuration'),
     'file' => 'site_verify.admin.inc',
-    'type' => MENU_LOCAL_TASK,
+    'type' => MENU_LOCAL_ACTION,
   );
-  $items['admin/build/site-verify/add/%site_verify_engine'] = array(
+  $items['admin/config/search/verifications/add/%site_verify_engine'] = array(
     'title' => 'Add',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('site_verify_edit_form', array(), 4),
+    'page arguments' => array('site_verify_edit_form', array(), 5),
     'access arguments' => array('administer site configuration'),
     'file' => 'site_verify.admin.inc',
-    'type' => MENU_CALLBACK,
   );
-  $items['admin/build/site-verify/%site_verify/edit'] = array(
+  $items['admin/config/search/verifications/%site_verify/edit'] = array(
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('site_verify_edit_form', 3),
+    'page arguments' => array('site_verify_edit_form', 4),
     'access arguments' => array('administer site configuration'),
     'file' => 'site_verify.admin.inc',
-    'type' => MENU_CALLBACK,
   );
-  $items['admin/build/site-verify/%site_verify/delete'] = array(
+  $items['admin/config/search/verifications/%site_verify/delete'] = array(
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('site_verify_delete_form', 3),
+    'page arguments' => array('site_verify_delete_form', 4),
     'access arguments' => array('administer site configuration'),
     'file' => 'site_verify.admin.inc',
-    'type' => MENU_CALLBACK,
   );
 
   // Add the verification paths.
-  $query = db_query("SELECT svid, file FROM {site_verify} WHERE file <> ''");
-  while ($engine = db_fetch_object($query)) {
-    $items[$engine->file] = array(
+  $verifications = db_query("SELECT svid, file FROM {site_verify} WHERE file <> ''")->fetchAll();
+  foreach ($verifications as $verification) {
+    $items[$verification->file] = array(
       'page callback' => 'site_verify_output',
-      'page arguments' => array((string) $engine->svid),
+      'page arguments' => array((string) $verification->svid),
       'access callback' => TRUE,
       'type' => MENU_CALLBACK,
     );
@@ -64,13 +56,19 @@ function site_verify_menu() {
 
 /**
  * Implements hook_init().
+ *
+ * @todo Move this to hook_html_head_alter()?
  */
 function site_verify_init() {
   // Add the verification meta tags to the front page.
   if (drupal_is_front_page()) {
-    $query = db_query("SELECT meta FROM {site_verify} WHERE meta <> ''");
-    while ($meta = db_result($query)) {
-      drupal_set_html_head($meta);
+    $meta_tags = db_query("SELECT svid, meta FROM {site_verify} WHERE meta <> ''")->fetchAllKeyed();
+    foreach ($meta_tags as $svid => $meta_tag) {
+      $data = array(
+        '#type' => 'markup',
+        '#markup' => $meta_tag . "\n",
+      );
+      drupal_add_html_head($data, 'site_verify:' . $svid);
     }
   }
 }
@@ -86,7 +84,7 @@ function site_verify_init() {
  *   An array of the site verification record, or FALSE if not found.
  */
 function site_verify_load($svid) {
-  $record = db_fetch_array(db_query("SELECT svid, engine, file, file_contents, meta FROM {site_verify} WHERE svid = %d", $svid));
+  $record = db_query("SELECT svid, engine, file, file_contents, meta FROM {site_verify} WHERE svid = :svid", array(':svid' => $svid))->fetchAssoc();
   if ($record) {
     $record['engine'] = site_verify_engine_load($record['engine']);
   }
@@ -185,6 +183,6 @@ function site_verify_output($svid) {
   }
   else {
     drupal_set_title(t('Verification page'));
-    return t('This is a verification page for the !title search engine.', array('!title' => $verification['engine']['name']));
+    return t('This is a verification page for the @title search engine.', array('!title' => $verification['engine']['name']));
   }
 }

@@ -1,14 +1,16 @@
-; $Id: tagadelic_views.info,v 1.2.2.2 2008/04/27 18:35:26 douggreen Exp $
 name = Tagadelic Views
 description = Adds a Tagadelic View to the Views module
-dependencies[] = views
+core = 7.x
 dependencies[] = tagadelic
-package = Views
-core = 6.x
+package = "Taxonomy"
 
-; Information added by drupal.org packaging script on 2010-07-22
-version = "6.x-1.2"
-core = "6.x"
+
+files[] = includes/tagadelic_plugin_style.inc
+
+
+; Information added by drupal.org packaging script on 2013-01-09
+version = "7.x-1.x-dev"
+core = "7.x"
 project = "tagadelic_views"
-datestamp = "1279766708"
+datestamp = "1357740982"
 

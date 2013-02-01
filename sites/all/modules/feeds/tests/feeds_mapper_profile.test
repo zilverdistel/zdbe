@@ -1,5 +1,4 @@
 <?php
-module_load_include('test', 'feeds', 'tests/feeds_mapper');
 
 /**
  * @file
@@ -7,7 +6,7 @@ module_load_include('test', 'feeds', 'tests/feeds_mapper');
  */
 
 /**
- * Class for testing Feeds <em>content</em> mapper.
+ * Class for testing Feeds profile mapper.
  */
 class FeedsMapperProfileTestCase extends FeedsMapperTestCase {
   public static function getInfo() {
@@ -33,15 +32,17 @@ class FeedsMapperProfileTestCase extends FeedsMapperTestCase {
       'category' => 'test',
       'title' => 'color',
       'name' => 'profile_textfield_test',
+      'register' => 1,
     );
-    $name = $this->drupalPost('admin/user/profile/add/textfield', $edit, t('Save field'));
+    $name = $this->drupalPost('admin/config/people/profile/add/textfield', $edit, t('Save field'));
     $edit = array(
       'category' => 'test',
       'title' => 'letter',
       'name' => 'profile_select_test',
       'options' => 'alpha' . "\n" . 'beta' . "\n" . 'gamma',
+      'register' => 1,
     );
-    $name = $this->drupalPost('admin/user/profile/add/selection', $edit, t('Save field'));
+    $name = $this->drupalPost('admin/config/people/profile/add/selection', $edit, t('Save field'));
 
     // Create an importer.
     $this->createImporterConfiguration('Profile import', 'profile_import');
@@ -66,12 +67,10 @@ class FeedsMapperProfileTestCase extends FeedsMapperTestCase {
       '2' => array(
         'source' => 'color',
         'target' => 'profile_textfield_test',
-        'unique' => FALSE,
       ),
       '3' => array(
         'source' => 'letter',
         'target' => 'profile_select_test',
-        'unique' => FALSE,
       ),
     );
     $this->addMappings('profile_import', $mappings);
@@ -81,22 +80,22 @@ class FeedsMapperProfileTestCase extends FeedsMapperTestCase {
       'content_type' => '',
       'import_period' => FEEDS_SCHEDULE_NEVER,
     );
-    $this->drupalPost('admin/build/feeds/edit/profile_import/settings', $edit, 'Save');
+    $this->drupalPost('admin/structure/feeds/profile_import/settings', $edit, 'Save');
 
     // Import CSV file.
     $this->importFile('profile_import', $this->absolutePath() .'/tests/feeds/profile.csv');
     $this->assertText('Created 2 users.');
 
     // Check the two imported users.
-    $this->drupalGet('admin/user/user');
+    $this->drupalGet('admin/people');
     $this->assertText('magna');
     $this->assertText('rhoncus');
 
-    $account = user_load(array('name' => 'magna'));
+    $account = user_load_by_name('magna');
     $this->assertEqual($account->profile_textfield_test, 'red', 'User profile_textfield_test is correct');
     $this->assertEqual($account->profile_select_test, 'alpha', 'User profile_select_test is correct');
 
-    $account = user_load(array('name' => 'rhoncus'));
+    $account = user_load_by_name('rhoncus');
     $this->assertEqual($account->profile_textfield_test, 'blue', 'User profile_textfield_test is correct');
     $this->assertEqual($account->profile_select_test, 'beta', 'User profile_select_test is correct');
   }

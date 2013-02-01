@@ -87,37 +87,60 @@ function hook_feeds_plugins() {
 /**
  * Invoked after a feed source has been parsed, before it will be processed.
  *
- * @param $importer
- *   FeedsImporter object that has been used for importing the feed.
  * @param $source
  *  FeedsSource object that describes the source that has been imported.
+ * @param $result
+ *   FeedsParserResult object that has been parsed from the source.
  */
-function hook_feeds_after_parse(FeedsImporter $importer, FeedsSource $source) {
+function hook_feeds_after_parse(FeedsSource $source, FeedsParserResult $result) {
   // For example, set title of imported content:
-  $source->batch->title = 'Import number '. my_module_import_id();
+  $result->title = 'Import number ' . my_module_import_id();
+}
+
+/**
+ * Invoked before a feed item is saved.
+ *
+ * @param $source
+ *  FeedsSource object that describes the source that is being imported.
+ * @param $entity
+ *   The entity object.
+ * @param $item
+ *   The parser result for this entity.
+ */
+function hook_feeds_presave(FeedsSource $source, $entity, $item) {
+  if ($entity->feeds_item->entity_type == 'node') {
+    // Skip saving this entity.
+    $entity->feeds_item->skip = TRUE;
+  }
+}
+
+/**
+ * Invoked before a feed source import starts.
+ *
+ * @param $source
+ *  FeedsSource object that describes the source that is going to be imported.
+ */
+function hook_feeds_before_import(FeedsSource $source) {
+  // See feeds_rules module's implementation for an example.
 }
 
 /**
  * Invoked after a feed source has been imported.
  *
- * @param $importer
- *   FeedsImporter object that has been used for importing the feed.
  * @param $source
  *  FeedsSource object that describes the source that has been imported.
  */
-function hook_feeds_after_import(FeedsImporter $importer, FeedsSource $source) {
+function hook_feeds_after_import(FeedsSource $source) {
   // See geotaxonomy module's implementation for an example.
 }
 
 /**
  * Invoked after a feed source has been cleared of its items.
  *
- * @param $importer
- *   FeedsImporter object that has been used for clearing the feed.
  * @param $source
  *  FeedsSource object that describes the source that has been cleared.
  */
-function hook_feeds_after_clear(FeedsImporter $importer, FeedsSource $source) {
+function hook_feeds_after_clear(FeedsSource $source) {
 }
 
 /**
@@ -135,8 +158,6 @@ function hook_feeds_after_clear(FeedsImporter $importer, FeedsSource $source) {
  * Use this hook to add additional mapping sources for any parser. Allows for
  * registering a callback to be invoked at mapping time.
  *
- * my_callback(FeedsImportBatch $batch, $key)
- *
  * @see my_source_get_source().
  * @see locale_feeds_parser_sources_alter().
  */
@@ -149,12 +170,14 @@ function hook_feeds_parser_sources_alter(&$sources, $content_type) {
 }
 
 /**
- * Callback specified in hook_feeds_parser_sources_alter().
+ * Example callback specified in hook_feeds_parser_sources_alter().
  *
  * To be invoked on mapping time.
  *
- * @param $batch
- *   The FeedsImportBatch object being mapped from.
+ * @param $source
+ *   The FeedsSource object being imported.
+ * @param $result
+ *   The FeedsParserResult object being mapped from.
  * @param $key
  *   The key specified in the $sources array in
  *   hook_feeds_parser_sources_alter().
@@ -162,34 +185,16 @@ function hook_feeds_parser_sources_alter(&$sources, $content_type) {
  * @return
  *   The value to be extracted from the source.
  *
- * @see hook_feeds_parser_sources_alter().
- * @see locale_feeds_get_source().
+ * @see hook_feeds_parser_sources_alter()
+ * @see locale_feeds_get_source()
  */
-function my_source_get_source(FeedsImportBatch $batch, $key) {
-  $item = $batch->currentItem();
+function my_source_get_source(FeedsSource $source, FeedsParserResult $result, $key) {
+  $item = $result->currentItem();
   return my_source_parse_images($item['description']);
 }
 
 /**
- * Alter mapping targets for users. Use this hook to add additional target
- * options to the mapping form of User processors.
- *
- * For an example implementation, see mappers/profile.inc
- *
- * @param: &$targets
- *  Array containing the targets to be offered to the user. Add to this array
- *  to expose additional options. Remove from this array to suppress options.
- */
-function hook_feeds_user_processor_targets_alter(&$targets) {
-  $targets['my_user_field'] = array(
-    'name' => t('My custom user field'),
-    'description' => t('Description of what my custom user field does.'),
-    'callback' => 'my_callback',
-  );
-}
-
-/**
- * Alter mapping targets for nodes. Use this hook to add additional target
+ * Alter mapping targets for entities. Use this hook to add additional target
  * options to the mapping form of Node processors.
  *
  * If the key in $targets[] does not correspond to the actual key on the node
@@ -201,61 +206,104 @@ function hook_feeds_user_processor_targets_alter(&$targets) {
  *   Array containing the targets to be offered to the user. Add to this array
  *   to expose additional options. Remove from this array to suppress options.
  *   Remove with caution.
- * @param $content_type
- *   The content type of the target node.
+ * @param $entity_type
+ *   The entity type of the target, for instance a 'node' entity.
+ * @param $bundle_name
+ *   The bundle name for which to alter targets.
  */
-function hook_feeds_node_processor_targets_alter(&$targets, $content_type) {
-  $targets['my_node_field'] = array(
-    'name' => t('My custom node field'),
-    'description' => t('Description of what my custom node field does.'),
-    'callback' => 'my_callback',
-  );
-  $targets['my_node_field2'] = array(
-    'name' => t('My Second custom node field'),
-    'description' => t('Description of what my second custom node field does.'),
-    'callback' => 'my_callback2',
-    'real_target' => 'my_node_field_two', // Specify real target field on node.
-  );
-}
+function hook_feeds_processor_targets_alter(&$targets, $entity_type, $bundle_name) {
+  if ($entity_type == 'node') {
+    $targets['my_node_field'] = array(
+      'name' => t('My custom node field'),
+      'description' => t('Description of what my custom node field does.'),
+      'callback' => 'my_module_set_target',
 
-/**
- * Alter mapping targets for taxonomy terms. Use this hook to add additional
- * target options to the mapping form of Taxonomy term processor.
- *
- * For an example implementation, look at geotaxnomy module.
- * http://drupal.org/project/geotaxonomy
- *
- * @param &$targets
- *   Array containing the targets to be offered to the user. Add to this array
- *   to expose additional options. Remove from this array to suppress options.
- *   Remove with caution.
- * @param $vid
- *   The vocabulary id
- */
-function hook_feeds_term_processor_targets_alter(&$targets, $vid) {
-  if (variable_get('mymodule_vocabulary_'. $vid, 0)) {
-    $targets['lat'] = array(
-      'name' => t('Latitude'),
-      'description' => t('Latitude of the term.'),
+      // Specify both summary_callback and form_callback to add a per mapping
+      // configuration form.
+      'summary_callback' => 'my_module_summary_callback',
+      'form_callback' => 'my_module_form_callback',
     );
-    $targets['lon'] = array(
-      'name' => t('Longitude'),
-      'description' => t('Longitude of the term.'),
+    $targets['my_node_field2'] = array(
+      'name' => t('My Second custom node field'),
+      'description' => t('Description of what my second custom node field does.'),
+      'callback' => 'my_module_set_target2',
+      'real_target' => 'my_node_field_two', // Specify real target field on node.
     );
   }
 }
 
 /**
- * Alter mapping targets for Data table entries. Use this hook to add additional
- * target options to the mapping form of Data processor.
+ * Example callback specified in hook_feeds_processor_targets_alter().
+ *
+ * @param $source
+ *   Field mapper source settings.
+ * @param $entity
+ *   An entity object, for instance a node object.
+ * @param $target
+ *   A string identifying the target on the node.
+ * @param $value
+ *   The value to populate the target with.
+ * @param $mapping
+ *  Associative array of the mapping settings from the per mapping
+ *  configuration form.
  */
-function hook_feeds_data_processor_targets_alter(&$fields, $data_table) {
-  if ($data_table == mymodule_base_table()) {
-    $fields['mytable:category'] = array(
-      'name' => t('Category'),
-      'description' => t('One or more category terms.'),
-    );
+function my_module_set_target($source, $entity, $target, $value, $mapping) {
+  $entity->{$target}[$entity->language][0]['value'] = $value;
+  if (isset($source->importer->processor->config['input_format'])) {
+    $entity->{$target}[$entity->language][0]['format'] =
+      $source->importer->processor->config['input_format'];
   }
+}
+
+/**
+ * Example of the summary_callback specified in
+ * hook_feeds_processor_targets_alter().
+ *
+ * @param $mapping
+ *   Associative array of the mapping settings.
+ * @param $target
+ *   Array of target settings, as defined by the processor or
+ *   hook_feeds_processor_targets_alter().
+ * @param $form
+ *   The whole mapping form.
+ * @param $form_state
+ *   The form state of the mapping form.
+ *
+ * @return
+ *   Returns, as a string that may contain HTML, the summary to display while
+ *   the full form isn't visible.
+ *   If the return value is empty, no summary and no option to view the form
+ *   will be displayed.
+ */
+function my_module_summary_callback($mapping, $target, $form, $form_state) {
+  if (empty($mapping['my_setting'])) {
+    return t('My setting <strong>not</strong> active');
+  }
+  else {
+    return t('My setting <strong>active</strong>');
+  }
+}
+
+/**
+ * Example of the form_callback specified in
+ * hook_feeds_processor_targets_alter().
+ *
+ * The arguments are the same that my_module_summary_callback() gets.
+ *
+ * @return
+ *   The per mapping configuration form. Once the form is saved, $mapping will
+ *   be populated with the form values.
+ *
+ * @see my_module_summary_callback()
+ */
+function my_module_form_callback($mapping, $target, $form, $form_state) {
+  return array(
+    'my_setting' => array(
+      '#type' => 'checkbox',
+      '#title' => t('My setting checkbox'),
+      '#default_value' => !empty($mapping['my_setting']),
+    ),
+  );
 }
 
 /**

@@ -1,11 +1,15 @@
-; $Id: jcarousel.info,v 1.1.2.2.2.1 2008/12/02 20:22:46 robloach Exp $
 name = jCarousel
-description = Provides the jQuery jCarousel plugin.
-core = 6.x
+description = Create jQuery-based carousel rotators.
+package = User interface
+core = 7.x
 
-; Information added by drupal.org packaging script on 2009-03-25
-version = "6.x-1.1"
-core = "6.x"
+files[] = jcarousel.module
+files[] = includes/jcarousel.views.inc
+files[] = includes/jcarousel_style_plugin.inc
+
+; Information added by drupal.org packaging script on 2011-11-24
+version = "7.x-2.6"
+core = "7.x"
 project = "jcarousel"
-datestamp = "1238011538"
+datestamp = "1322116852"
 

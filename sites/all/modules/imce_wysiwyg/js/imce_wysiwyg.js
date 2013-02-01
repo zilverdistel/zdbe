@@ -1,4 +1,3 @@
-// $Id: imce_wysiwyg.js,v 1.3.4.1 2010/02/21 00:07:04 sun Exp $
 
 /**
  * Wysiwyg API integration helper function.

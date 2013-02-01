@@ -1,4 +1,3 @@
-# $Id: README.txt,v 1.2.2.1 2009/09/15 16:17:20 njt1982 Exp $
 
 This module provides a customizable set of blocks which contain an automated & limited number
 of links to nodes that are considered "relevant" to the current node based on how the current
