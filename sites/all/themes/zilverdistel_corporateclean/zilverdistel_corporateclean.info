@@ -1,0 +1,22 @@
+name = "Zilverdistel Corporateclean"
+description = "Subtheme with modifications for the corporateclean theme"
+core = "7.x"
+base theme = "corporateclean"  
+
+stylesheets[all][] = zilverdistel_corporateclean_style.css
+
+regions[navigation] = Navigation
+regions[search_area] = Search area
+regions[highlighted] = Highlighted
+regions[content] = Content
+regions[sidebar_first] = First sidebar
+regions[sidebar_second] = Second sidebar
+regions[banner] = Banner
+regions[footer_first] = Footer first
+regions[footer_second] = Footer second
+regions[footer_third] = Footer third
+regions[footer] = Footer
+regions[footer_bottom_right] = Footer bottom right
+regions[help] = Help
+regions[page_top] = Page top
+regions[page_bottom] = Page bottom
