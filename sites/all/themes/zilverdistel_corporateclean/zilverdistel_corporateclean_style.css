@@ -1,0 +1,13 @@
+.field-name-taxonomy-vocabulary-2 {
+  margin-top: 1.2em;                      
+}
+
+.field-name-taxonomy-vocabulary-2 .field-items,
+.field-name-taxonomy-vocabulary-2 .field-items .field-item {
+  display:inline-block;
+}
+
+.field-name-taxonomy-vocabulary-2 .field-items .field-item {
+  display:inline-block;
+  padding-right: 1.2em;
+}
