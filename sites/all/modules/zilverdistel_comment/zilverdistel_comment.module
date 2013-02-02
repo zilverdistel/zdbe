@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file
+ * Hooks for the zilverdistel_comment module.
+ */
+
+/**
+ * Implements hook_node_view.
+ */
+function zilverdistel_comment_node_view($node, $view_mode, $langcode) {
+  if ($view_mode == 'teaser') {
+    unset($node->content['links']['comment']);
+  }
+}
+
