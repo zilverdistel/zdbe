@@ -1,0 +1,26 @@
+diff --git a/relevant_content.module b/relevant_content.module
+index adf57e3..ea7a909 100644
+--- a/relevant_content.module
++++ b/relevant_content.module
+@@ -958,7 +958,9 @@ function relevant_content_save_block($block) {
+   if (is_array($block['types'])) {
+     $query = db_insert('relevant_content_blocks_types')->fields(array('id', 'type'));
+     foreach ($block['types'] as $type) {
+-      $query->values(array($block['id'], $type));
++      if ($type) {
++        $query->values(array($block['id'], $type));
++      }
+     }
+     $query->execute();
+   }
+@@ -967,7 +969,9 @@ function relevant_content_save_block($block) {
+   if (is_array($block['vocabs'])) {
+     $query = db_insert('relevant_content_blocks_vocabs')->fields(array('id', 'vid'));
+     foreach ($block['vocabs'] as $vid) {
+-      $query->values(array($block['id'], $vid));
++      if ($vid) {
++        $query->values(array($block['id'], $vid));
++      }
+     }
+     $query->execute();
+   }
