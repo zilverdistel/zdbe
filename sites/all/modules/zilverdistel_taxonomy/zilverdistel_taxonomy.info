@@ -1,0 +1,10 @@
+name = Zilverdistel Taxonomy
+description = ""Twists to zilverdistels taxonomy."
+core = 7.x
+package = Zilverdistel
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:1
+features[views_view][] = zilverdistel_orphan_terms
+features[views_view][] = zilverdistel_tagcloud
+features_exclude[dependencies][tagadelic_views] = tagadelic_views
+features_exclude[dependencies][views] = views

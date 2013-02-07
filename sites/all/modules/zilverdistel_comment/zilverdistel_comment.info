@@ -1,5 +1,5 @@
 name = "Zilverdistel Comment"
 description = "Hides the add comment link on teasers."
 core = 7.x
-
+package = Zilverdistel
 dependencies[] = comment
