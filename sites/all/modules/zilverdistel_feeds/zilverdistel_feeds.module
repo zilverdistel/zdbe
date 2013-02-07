@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Zilverdistel delicious feeds feature.
+ */
+
+include_once 'zilverdistel_feeds.features.inc';
