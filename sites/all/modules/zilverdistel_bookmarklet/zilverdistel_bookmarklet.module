@@ -1,0 +1,71 @@
+<?php
+
+/**
+ * @file
+ * General hooks for the zilverdistel bookmarklet.
+ */
+
+/**
+ * Implements hook_init().
+ */
+function zilverdistel_bookmarklet_init(){
+  $link = $_GET['edit']['field_original_link']['und'][0]['url'];
+  if (!empty($link)) {
+    // Redirect to the edit page if a link is allready in the database.
+    $query = new EntityFieldQuery();
+
+    $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', 'feed_item')
+      ->fieldCondition('field_original_link', 'url', $link, '=')
+      ->range(0, 10)
+      ->addMetaData('account', user_load(1)); // Run the query as user 1.
+
+    $result = $query->execute();
+
+    if (isset($result['node'])) {
+      $node = array_shift($result['node']);
+      drupal_goto('node/' . $node->nid . '/edit');
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function zilverdistel_bookmarklet_theme($existing, $type, $theme, $path){
+  return array(
+    'zilverdistel_bookmarklet_link' => array(
+      'variables' => array(),
+      'template' => 'zilverdistel_bookmarklet_link',
+    ),
+    'zilverdistel_bookmarklet_link_minified' => array(
+      'variables' => array(),
+      'template' => 'zilverdistel_bookmarklet_link_minified',
+    ),
+  );
+}
+
+/**
+ * 
+ */
+function zilverdistel_bookmarklet_settings(){
+  $items = array(
+    theme('zilverdistel_bookmarklet_link', array()),
+    theme('zilverdistel_bookmarklet_link_minified', array()),
+  );
+  return theme('item_list', array('items' => $items));
+}
+
+/**
+ * Implements hook_menu().
+ */
+function zilverdistel_bookmarklet_menu(){
+  $items['admin/config/content/zilverdistel_bookmarklet'] = array(
+    'title' => 'Zilverdistel Bookmarklet',
+    'description' => 'Provide a Zilverdistel bookmarklet that can be dragged to your bookmarks toolbar.',
+    'page callback' => 'zilverdistel_bookmarklet_settings',
+    'access arguments' => array('administer content'),
+  );
+  return $items;  
+}
+

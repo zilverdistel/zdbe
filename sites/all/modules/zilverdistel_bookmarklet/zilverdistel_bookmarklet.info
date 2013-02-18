@@ -1,0 +1,9 @@
+name = "Zilverdistel bookmarklet"
+description = "Provides a bookmarklet to add feed-items to the website from another page."
+core = 7.x
+
+dependencies[] = entity
+dependencies[] = prepopulate
+
+files[] = zilverdistel_bookmarklet_link.tpl.php
+files[] = zilverdistel_bookmarklet_link_minified.tpl.php
