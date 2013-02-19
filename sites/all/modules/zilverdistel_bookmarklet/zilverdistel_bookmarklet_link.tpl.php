@@ -1,5 +1,5 @@
 Link: <a href='javascript:
-var nodeaddpath="http://phoenix.local/dev/zilverdistel.be/?q=node/add/feed-item",
+var nodeaddpath="<?php echo $node_add_path; ?>",
   d=document,
   w=window,
   e=w.getSelection,

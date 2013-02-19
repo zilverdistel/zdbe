@@ -7,3 +7,5 @@ dependencies[] = prepopulate
 
 files[] = zilverdistel_bookmarklet_link.tpl.php
 files[] = zilverdistel_bookmarklet_link_minified.tpl.php
+
+configure = admin/config/content/zilverdistel_bookmarklet

@@ -11,19 +11,36 @@
 function zilverdistel_bookmarklet_init(){
   $link = $_GET['edit']['field_original_link']['und'][0]['url'];
   if (!empty($link)) {
+
+    //dpm('<pre>'. $link . '</pre>', 'link');
+
+    // QUICKFIX
+    // We add the slash if the server reduced '//' to '/'.
+    if (0 !== strpos('://')) {
+      $link = str_replace(':/', '://', $link);
+    }
+
+    //dpm('<pre>'. $link . '</pre>', 'link');
+    //print_r($_GET);
+
     // Redirect to the edit page if a link is allready in the database.
     $query = new EntityFieldQuery();
 
     $query->entityCondition('entity_type', 'node')
       ->entityCondition('bundle', 'feed_item')
-      ->fieldCondition('field_original_link', 'url', $link, '=')
+      ->fieldCondition('field_original_link', 'url', urldecode($link), '=')
       ->range(0, 10)
       ->addMetaData('account', user_load(1)); // Run the query as user 1.
-
+    
     $result = $query->execute();
+    
+    //dpm($result, 'result');
 
     if (isset($result['node'])) {
       $node = array_shift($result['node']);
+      
+      //dpm($node, 'node');
+
       drupal_goto('node/' . $node->nid . '/edit');
     }
   }
@@ -33,13 +50,16 @@ function zilverdistel_bookmarklet_init(){
  * Implements hook_theme().
  */
 function zilverdistel_bookmarklet_theme($existing, $type, $theme, $path){
+  $vars = array(
+    'node_add_path' => url('node/add/feed-item', array('absolute' => TRUE)),
+  );
   return array(
     'zilverdistel_bookmarklet_link' => array(
-      'variables' => array(),
+      'variables' => $vars,
       'template' => 'zilverdistel_bookmarklet_link',
     ),
     'zilverdistel_bookmarklet_link_minified' => array(
-      'variables' => array(),
+      'variables' => $vars,
       'template' => 'zilverdistel_bookmarklet_link_minified',
     ),
   );
