@@ -23,14 +23,6 @@ function zilverdistel_feeds_ctools_plugin_api() {
  */
 function zilverdistel_feeds_node_info() {
   $items = array(
-    'feed' => array(
-      'name' => t('Feed'),
-      'base' => 'node_content',
-      'description' => '',
-      'has_title' => '1',
-      'title_label' => t('Titel'),
-      'help' => '',
-    ),
     'feed_item' => array(
       'name' => t('Feed item'),
       'base' => 'node_content',

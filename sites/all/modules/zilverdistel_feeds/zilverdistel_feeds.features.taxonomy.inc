@@ -13,7 +13,7 @@ function zilverdistel_feeds_taxonomy_default_vocabularies() {
       'name' => 'Tags',
       'machine_name' => 'vocabulary_2',
       'description' => '',
-      'hierarchy' => '1',
+      'hierarchy' => '0',
       'module' => 'taxonomy',
       'weight' => '0',
     ),
